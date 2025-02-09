@@ -5,10 +5,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
 
+
+
 # Load dataset
 file_path = "/Users/binalpatel/Desktop/Machine learning/LAB2/Assignment1-2/Data/messy_data.csv"
 data = pd.read_csv(file_path)
-print(data.head())  # Shows the first few rows of the dataframe
+# Print the shape (rows, columns)
+print("Original Dataset Shape:", data.shape)
 
 
 # 1. Impute Missing Values
@@ -20,15 +23,13 @@ def impute_missing_values(data, strategy='mean'):
     :return: pandas DataFrame
     """
     numeric_data = data.select_dtypes(include=['number'])
-
+    missing_before = data.isnull().sum().sum()
     if strategy == 'mean':
         data = data.fillna(numeric_data.mean())
     elif strategy == 'median':
         data = data.fillna(numeric_data.median())
     elif strategy == 'mode':
         data = data.fillna(numeric_data.mode().iloc[0])
-    
-    print("Data after imputation:")
     print(data.head())
     return data
 
@@ -41,8 +42,10 @@ def remove_duplicates(data):
     :param data: pandas DataFrame
     :return: pandas DataFrame
     """
-    print("Data after removing duplicates:")
+    rows_before = data.shape[0]
     data = data.drop_duplicates()
+    rows_after = data.shape[0]
+    print(f"Rows removed due to duplicates: {rows_before - rows_after}")
     print(data.head())
     return data
 
@@ -85,8 +88,12 @@ def remove_redundant_features(data, threshold=0.9):
     
     # Drop the redundant columns from the original dataset
     data_cleaned = data.drop(columns=drop_cols)
-    
+    print(f"Columns removed due to redundancy: {len(drop_cols)}")
+    print(data.head())
     return data_cleaned
+data = remove_redundant_features(data)
+
+print("Final Dataset Shape:", data.shape)
 
 
 
