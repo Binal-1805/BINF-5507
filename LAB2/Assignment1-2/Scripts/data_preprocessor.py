@@ -1,10 +1,15 @@
-# import all necessary libraries here
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
+
+# Load dataset
+file_path = "/Users/binalpatel/Desktop/Machine learning/LAB2/Assignment1-2/Data/messy_data.csv"
+data = pd.read_csv(file_path)
+print(data.head())  # Shows the first few rows of the dataframe
+
 
 # 1. Impute Missing Values
 def impute_missing_values(data, strategy='mean'):
@@ -14,21 +19,20 @@ def impute_missing_values(data, strategy='mean'):
     :param strategy: str, imputation method ('mean', 'median', 'mode')
     :return: pandas DataFrame
     """
-    imputer = None
-    if strategy in ['mean', 'median']:
-        imputer = SimpleImputer(strategy=strategy)
+    numeric_data = data.select_dtypes(include=['number'])
+
+    if strategy == 'mean':
+        data = data.fillna(numeric_data.mean())
+    elif strategy == 'median':
+        data = data.fillna(numeric_data.median())
     elif strategy == 'mode':
-        imputer = SimpleImputer(strategy='most_frequent')
-    else:
-        raise ValueError("Invalid strategy! choose from 'mean,'median', or 'mode'")
+        data = data.fillna(numeric_data.mode().iloc[0])
     
-    # Apply imputation to numeric columns only
-    numeric_cols = data.select_dtypes(include=['number']).columns
-    data[numeric_cols] = imputer.fit_transform(data[numeric_cols])
+    print("Data after imputation:")
+    print(data.head())
     return data
 
-    # TODO: Fill missing values based on the specified strategy
-    pass
+data = impute_missing_values(data)  # Fill missing values using default 'mean' strategy
 
 # 2. Remove Duplicates
 def remove_duplicates(data):
@@ -37,50 +41,54 @@ def remove_duplicates(data):
     :param data: pandas DataFrame
     :return: pandas DataFrame
     """
-    return data.drop_duplicates()
+    print("Data after removing duplicates:")
+    data = data.drop_duplicates()
+    print(data.head())
+    return data
 
-    # TODO: Remove duplicate rows
-    pass
+data = remove_duplicates(data)  # Remove duplicates
 
 # 3. Normalize Numerical Data
-def normalize_data(data,method='minmax'):
+def normalize_data(data, method='minmax'):
     """Apply normalization to numerical features.
     :param data: pandas DataFrame
     :param method: str, normalization method ('minmax' (default) or 'standard')
     """
-    numerical_cols = data.select_dtypes(include=['number']).columns #select numeric columns
-    if method == 'minmax':
-        scaler = MinMaxScaler()
-    elif method == 'standard':
-        scaler = StandardScaler()
-    else:
-        raise ValueError("Invalid method. Use 'minmax' or 'standard'.")
-    data[numerical_cols] = scaler.fit_transform(data[numerical_cols]) #apply normalization
+    scaler = MinMaxScaler() if method == 'minmax' else StandardScaler()
+    num_cols = data.select_dtypes(include=['number']).columns
+    data[num_cols] = scaler.fit_transform(data[num_cols])
+    
+    print("Data after normalization:")
+    print(data.head())
     return data
 
-        
-    # TODO: Normalize numerical data using Min-Max or Standard scaling
-    pass
+data = normalize_data(data)  # Normalize data using 'minmax' method
 
 # 4. Remove Redundant Features   
 def remove_redundant_features(data, threshold=0.9):
-    """Remove redundant or duplicate columns.
+    """Remove redundant or duplicate columns based on correlation.
     :param data: pandas DataFrame
     :param threshold: float, correlation threshold
     :return: pandas DataFrame
     """
-    #compute the correlation matrix
-    corr_matrix = data.corr().abs()
+    # Select only numeric columns to avoid the string columns causing issues
+    numeric_data = data.select_dtypes(include=['number'])
     
-    #Select upper triangle of correlation matrix
-    upper_triangle = corr_matrix.where(np.triu(corr_matrix.shape), k=1),astype(bool)
-    # Find features with correlation greater than threshold
-    to_drop = [column for column in upper_triangle.columns if any(upper_triangle[column] > threshold)]
-    # Drop highly correlated features
-    data = data.drop(columns=to_drop)
-    return data
-    # TODO: Remove redundant features based on the correlation threshold (HINT: you can use the corr() method)
-    pass
+    # Compute the correlation matrix for numeric columns only
+    corr_matrix = numeric_data.corr().abs()
+    
+    # Get the upper triangle of the correlation matrix (to avoid double counting)
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    
+    # Find columns that have a correlation greater than the threshold
+    drop_cols = [col for col in upper.columns if any(upper[col] > threshold)]
+    
+    # Drop the redundant columns from the original dataset
+    data_cleaned = data.drop(columns=drop_cols)
+    
+    return data_cleaned
+
+
 
 # ---------------------------------------------------
 
@@ -107,42 +115,39 @@ def simple_model(input_data, split_data=True, scale_data=False, print_report=Fal
     """
 
     # if there's any missing data, remove the columns
-    input_data = input_data.dropna(axis=1)
+    input_data.dropna(inplace=True)
 
     # split the data into features and target
-    target = input_data.iloc[:, 0]
+    target = input_data.iloc[:, 0]  # First column as target
     features = input_data.iloc[:, 1:]
     
-
-    # if the column is not numeric, encode it (one-hot)
-    for col in features.columns:
-        if features[col].dtype == 'object':
-            features = pd.concat([features, pd.get_dummies(features[col], prefix=col)], axis=1)
-            features.drop(col, axis=1, inplace=True)
-
+    # Encode categorical features using one-hot encoding
+    features = pd.get_dummies(features)
+    
+    # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, stratify=target, random_state=42)
 
+    # Scale the data if scale_data is True
     if scale_data:
-        # scale the data
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
         
-    # instantiate and fit the model
-    log_reg = LogisticRegression(random_state=42, max_iter=100, solver='liblinear', penalty='l2', C=1.0)
-    log_reg.fit(X_train, y_train)
+    # Instantiate and fit the model
+    model = LogisticRegression(max_iter=100, solver='liblinear', penalty='l2', C=1.0)
+    model.fit(X_train, y_train)
 
-    # make predictions and evaluate the model
-    y_pred = log_reg.predict(X_test)
+    # Make predictions and evaluate the model
+    y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred)
 
-    print(f'Accuracy: {accuracy}')
+    print(f'Accuracy: {accuracy:.2f}')
     
     # if specified, print the classification report
     if print_report:
         print('Classification Report:')
         print(report)
-        print('Read more about the classification report: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html and https://www.nb-data.com/p/breaking-down-the-classification')
-    
+        print('Read more about the classification report: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html')
+
     return None
