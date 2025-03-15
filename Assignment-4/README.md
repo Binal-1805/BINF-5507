@@ -1,6 +1,4 @@
-<<<<<<< HEAD
-# BINF-5507
-Data preprocessing and machine learning pipeline
+
 =======
 Survival Analysis of  Head and Neck Cancer Patients
 
