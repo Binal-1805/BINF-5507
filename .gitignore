@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 
 # pixi environments
 .pixi
 *.egg-info
+=======
+>>>>>>> 49573f6 (Initial commit for Assignment-4)
 .DS_Store
